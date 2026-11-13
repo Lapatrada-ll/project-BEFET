@@ -37,3 +37,8 @@ export function login(email, password) {
     body: { email, password },
   }); // Returns { message, token, user }
 }
+
+// ---------- Categories ----------
+export function getCategories() {
+  return apiFetch('/api/categories'); // [{ category_id, category_name, image_url }]
+}

@@ -1,6 +1,20 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { getCategories } from '../api/backend';
+
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&q=80';
+
 function Home() {
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getCategories()
+      .then(setCategories)
+      .catch(() => setCategories([]))
+      .finally(() => setLoading(false));
+  }, []);
+
   return <>
     <section className="hero">
       <div className="hero-copy">
@@ -18,15 +32,13 @@ function Home() {
       </div>
         <Link className="text-link" to="/shop">VIEW ALL ↗</Link>
       </div>
-      <div className="category-grid">{[{ name: 'TOPS', img: 'https://images.unsplash.com/photo-1789110520769-c18355b70c63?auto=format&fit=crop&fm=jpg&q=60&w=900', cat: 'Tops' },
-      { name: 'BOTTOMS', img: 'https://images.unsplash.com/photo-1789110520732-77b1e55c32ea?auto=format&fit=crop&fm=jpg&q=80&w=900', cat: 'Bottoms' },
-      { name: 'DRESSES', img: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=800&q=80', cat: 'Dresses' },
-      { name: 'ACCESSORIES', img: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=800&q=80', cat: 'Accessories' }].map(c =>
-        <Link to={`/shop?category=${c.cat}`} className="category-tile" key={c.cat}>
-          <img src={c.img} alt={c.name} />
-          <span>{c.name} <b>↗</b></span>
-        </Link>)}
-      </div>
+      {loading ? <p>Loading...</p> :
+        <div className="category-grid">{categories.map(c =>
+          <Link to={`/shop?category=${encodeURIComponent(c.category_name)}`} className="category-tile" key={c.category_id}>
+            <img src={c.image_url || FALLBACK_IMG} alt={c.category_name} />
+            <span>{c.category_name.toUpperCase()} <b>↗</b></span>
+          </Link>)}
+        </div>}
     </section>
     <section className="statement">
       <h2>Good clothes.<br /><em>Good mood.</em></h2>
