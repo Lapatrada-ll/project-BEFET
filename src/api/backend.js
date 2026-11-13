@@ -47,3 +47,23 @@ export function getCategories() {
 export function getProducts() {
   return apiFetch('/api/products');
 }
+
+// ---------- Favorites (Wishlist) ----------
+export function getFavorites(token) {
+  return apiFetch('/api/favorites', { token }); // returns [product_id, ...]
+}
+
+export function addFavorite(productId, token) {
+  return apiFetch('/api/favorites', {
+    method: 'POST',
+    body: { product_id: productId },
+    token,
+  });
+}
+
+export function removeFavorite(productId, token) {
+  return apiFetch(`/api/favorites/${productId}`, {
+    method: 'DELETE',
+    token,
+  });
+}

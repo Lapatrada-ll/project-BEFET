@@ -16,6 +16,7 @@ import Checkout from './pages/Checkout';
 import Success from './pages/Success';
 import Account from './pages/Account';
 import { NotFound } from './components/Common';
+import { getProducts, getFavorites, addFavorite, removeFavorite } from './api/backend';
 
 const load = (key, fallback) => {
   try {
@@ -30,11 +31,46 @@ function App() {
   const [users, setUsers] = useState(() => load('yc_users', []));
   const [user, setUser] = useState(() => load('yc_user', null));
   const [cart, setCart] = useState(() => load('yc_cart', []));
-  const [favorites, setFavorites] = useState(() => load('yc_favorites', []));
+  const [favorites, setFavorites] = useState([]);
   const [orders, setOrders] = useState(() => load('yc_orders', []));
   const [reviews, setReviews] = useState(() => load('yc_reviews', initialReviews));
   const [notice, setNotice] = useState('');
 
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!user || !token) {
+      setFavorites([]);
+      return;
+    }
+    getFavorites(token)
+      .then(setFavorites)
+      .catch(() => setFavorites([]));
+    localStorage.removeItem('yc_favorites');
+  }, [user]);
+  const toggleFavorite = async (productId) => {
+    const token = localStorage.getItem('token');
+    if (!user || !token) {
+      flash('กรุณาเข้าสู่ระบบก่อนเพิ่มรายการโปรด');
+      return;
+    }
+    const liked = favorites.includes(productId);
+    // Optimistically update UI
+    setFavorites(old => liked ? old.filter(id => id !== productId) : [...old, productId]);
+    try {
+      if (liked) {
+        await removeFavorite(productId, token);
+        flash('นำออกจากรายการโปรดแล้ว');
+      } else {
+        await addFavorite(productId, token);
+        flash('เพิ่มในรายการโปรดแล้ว');
+      }
+    } catch (err) {
+      // Revert if server failed
+      setFavorites(old => liked ? [...old, productId] : old.filter(id => id !== productId));
+      flash(err.message || 'ไม่สามารถบันทึกรายการโปรดได้');
+    }
+  };
+  
   // Load products from Go backend -> Supabase
   useEffect(() => {
     getProducts()
