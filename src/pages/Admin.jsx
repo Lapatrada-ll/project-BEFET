@@ -4,9 +4,13 @@ import { useStore } from '../context/StoreContext';
 import { money } from '../data';
 import {
   getCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
   getProducts,
   getReviews,
   getAdminUsers,
+  createAdminUser,
   updateAdminUser,
   deleteAdminUser,
   getAdminOrders,
@@ -19,7 +23,8 @@ import {
 import { LoginRequired } from '../components/Common';
 
 const emptyProductForm = { name: '', category: 'Tops', price: '', stock: '', image: '', description: '' };
-const emptyMemberForm = { name: '', email: '', role: 'customer', shippingAddress: '' };
+const emptyCategoryForm = { category_name: '', image_url: '' };
+const emptyMemberForm = { name: '', email: '', password: '', role: 'customer', shippingAddress: '' };
 const emptyReviewForm = { rating: 5, comment: '' };
 
 function Admin() {
@@ -30,7 +35,11 @@ function Admin() {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyProductForm);
   const [imageError, setImageError] = useState(false);
-  const [categoryList, setCategoryList] = useState(['Tops', 'Bottoms', 'Dresses', 'Accessories']);
+
+  // Category editor state
+  const [categoriesData, setCategoriesData] = useState([]);
+  const [editingCategory, setEditingCategory] = useState(null);
+  const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
 
   // Member editor state
   const [editingMember, setEditingMember] = useState(null);
@@ -40,17 +49,16 @@ function Admin() {
   const [editingReview, setEditingReview] = useState(null);
   const [reviewForm, setReviewForm] = useState(emptyReviewForm);
 
+  const categoryList = categoriesData.length
+    ? categoriesData.map(c => c.category_name)
+    : ['Tops', 'Bottoms', 'Dresses', 'Accessories'];
+
   // Fetch live data from database when Admin opens or switches tabs
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (user?.role !== 'admin' || !token) return;
 
-    getCategories()
-      .then(list => {
-        if (list.length) setCategoryList(list.map(c => c.category_name));
-      })
-      .catch(() => {});
-
+    getCategories().then(setCategoriesData).catch(() => {});
     getAdminUsers(token).then(setUsers).catch(() => {});
     getAdminOrders(token).then(setOrders).catch(() => {});
     getReviews().then(setReviews).catch(() => {});
@@ -133,12 +141,65 @@ function Admin() {
     }
   };
 
+  // ---------- Category handlers ----------
+  const resetCategoryForm = () => {
+    setEditingCategory(null);
+    setCategoryForm(emptyCategoryForm);
+  };
+
+  const saveCategory = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    try {
+      if (editingCategory) {
+        await updateCategory(editingCategory, categoryForm, token);
+        flash('แก้ไขหมวดหมู่เรียบร้อยแล้ว');
+      } else {
+        await createCategory(categoryForm, token);
+        flash('เพิ่มหมวดหมู่ใหม่เรียบร้อยแล้ว');
+      }
+      const fresh = await getCategories();
+      setCategoriesData(fresh);
+      resetCategoryForm();
+    } catch (err) {
+      flash(err.message || 'ไม่สามารถบันทึกหมวดหมู่ได้');
+    }
+  };
+
+  const startEditCategory = (cat) => {
+    setEditingCategory(cat.category_id);
+    setCategoryForm({
+      category_name: cat.category_name || '',
+      image_url: cat.image_url || '',
+    });
+    document.getElementById('admin-category-form')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const removeCategory = async (id) => {
+    if (!window.confirm('ต้องการลบหมวดหมู่นี้หรือไม่?')) return;
+    const token = localStorage.getItem('token');
+    try {
+      await deleteCategory(id, token);
+      setCategoriesData(old => old.filter(c => c.category_id !== id));
+      if (editingCategory === id) resetCategoryForm();
+      flash('ลบหมวดหมู่แล้ว');
+    } catch (err) {
+      flash(err.message || 'ไม่สามารถลบหมวดหมู่ได้');
+    }
+  };
+
   // ---------- Member handlers ----------
+  const resetMemberForm = () => {
+    setEditingMember(null);
+    setMemberForm(emptyMemberForm);
+  };
+
   const startEditMember = (member) => {
     setEditingMember(member.id);
     setMemberForm({
       name: member.name || '',
       email: member.email || '',
+      password: '',
       role: member.role || 'customer',
       shippingAddress: member.shippingAddress || '',
     });
@@ -147,17 +208,20 @@ function Admin() {
 
   const saveMember = async (e) => {
     e.preventDefault();
-    if (!editingMember) return;
     const token = localStorage.getItem('token');
     try {
-      await updateAdminUser(editingMember, memberForm, token);
+      if (editingMember) {
+        await updateAdminUser(editingMember, memberForm, token);
+        flash('บันทึกการแก้ไขข้อมูลสมาชิกแล้ว');
+      } else {
+        await createAdminUser(memberForm, token);
+        flash('เพิ่มสมาชิกใหม่เรียบร้อยแล้ว');
+      }
       const freshUsers = await getAdminUsers(token);
       setUsers(freshUsers);
-      setEditingMember(null);
-      setMemberForm(emptyMemberForm);
-      flash('บันทึกข้อมูลสมาชิกเรียบร้อยแล้ว');
+      resetMemberForm();
     } catch (err) {
-      flash(err.message || 'ไม่สามารถแก้ไขข้อมูลสมาชิกได้');
+      flash(err.message || 'ไม่สามารถบันทึกข้อมูลสมาชิกได้');
     }
   };
 
@@ -167,7 +231,7 @@ function Admin() {
     try {
       await deleteAdminUser(id, token);
       setUsers(old => old.filter(u => u.id !== id));
-      if (editingMember === id) setEditingMember(null);
+      if (editingMember === id) resetMemberForm();
       flash('ลบบัญชีสมาชิกแล้ว');
     } catch (err) {
       flash(err.message || 'ไม่สามารถลบสมาชิกได้');
@@ -259,9 +323,9 @@ function Admin() {
             <div className="admin-panel-heading"><div><h2>ยินดีต้อนรับสู่ระบบจัดการร้านค้า</h2><p>เลือกเมนูที่ต้องการเพื่อจัดการข้อมูลของ Yes, Cloth</p></div></div>
             <div className="admin-quick-actions">
               <button onClick={() => setTab('products')}><span>＋</span><b>เพิ่มสินค้า</b><small>จัดการสินค้าและรูปภาพ</small></button>
-              <button onClick={() => setTab('categories')}><span>▦</span><b>หมวดหมู่สินค้า</b><small>ดูหมวดหมู่ทั้งหมด</small></button>
-              <button onClick={() => setTab('users')}><span>♙</span><b>จัดการสมาชิก</b><small>ตรวจสอบบัญชีผู้ใช้</small></button>
-              <button onClick={() => setTab('reviews')}><span>☆</span><b>รีวิวสินค้า</b><small>อ่านความคิดเห็นลูกค้า</small></button>
+              <button onClick={() => setTab('categories')}><span>▦</span><b>หมวดหมู่สินค้า</b><small>เพิ่มและแก้ไขหมวดหมู่</small></button>
+              <button onClick={() => setTab('users')}><span>♙</span><b>จัดการสมาชิก</b><small>เพิ่มและแก้ไขบัญชีผู้ใช้</small></button>
+              <button onClick={() => setTab('reviews')}><span>☆</span><b>รีวิวสินค้า</b><small>จัดการความคิดเห็นลูกค้า</small></button>
             </div>
           </section>
         </>}
@@ -269,8 +333,8 @@ function Admin() {
         {tab === 'products' && <>
           <form id="admin-product-form" className="admin-form" onSubmit={saveProduct}>
             <div className="admin-panel-heading">
-              <div><h2>{editing ? 'แก้ไขสินค้า' : 'Add new product'}</h2><p>กรอกรายละเอียดและรูปภาพสินค้าที่ต้องการลงขาย</p></div>
-              {editing && <button type="button" className="admin-text-button" onClick={resetForm}>ยกเลิก</button>}
+              <div><h2>{editing ? 'Edit Product' : 'Add new product'}</h2><p>กรอกรายละเอียดและรูปภาพสินค้าที่ต้องการลงขาย</p></div>
+              {editing && <button type="button" className="admin-text-button" onClick={resetForm}>Cancel</button>}
             </div>
             <div className="admin-product-editor">
               <div className="admin-product-fields">
@@ -286,7 +350,7 @@ function Admin() {
                 <label>จำนวนสินค้า<input required type="number" min="0" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value })} placeholder="20" /></label>
                 <label>ลิงก์รูปภาพสินค้า<input value={form.image} onChange={e => { setForm({ ...form, image: e.target.value }); setImageError(false); }} placeholder="https://example.com/product.jpg" /></label>
                 <label>รายละเอียดสินค้า<textarea rows="3" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="รายละเอียดสินค้า..." /></label>
-                <button className="btn dark" type="submit">{editing ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า'}</button>
+                <button className="btn dark" type="submit">{editing ? 'Save Changes' : 'Add Product'}</button>
               </div>
               <div className="admin-image-preview">
                 <span>ตัวอย่างรูปสินค้า</span>
@@ -309,8 +373,8 @@ function Admin() {
                       <td>{money(product.price)}</td>
                       <td>{product.stock}</td>
                       <td>
-                        <button className="table-action" onClick={() => editProduct(product)}>แก้ไข</button>
-                        <button className="table-action danger" onClick={() => removeProduct(product.id)}>ลบ</button>
+                        <button className="table-action" onClick={() => editProduct(product)}>Edit</button>
+                        <button className="table-action danger" onClick={() => removeProduct(product.id)}>Delete</button>
                       </td>
                     </tr>
                   ))}
@@ -320,24 +384,71 @@ function Admin() {
           </section>
         </>}
 
-        {tab === 'categories' && (
+        {tab === 'categories' && <>
+          <form id="admin-category-form" className="admin-form" onSubmit={saveCategory}>
+            <div className="admin-panel-heading">
+              <div>
+                <h2>{editingCategory ? `Edit Category #${editingCategory}` : 'Add New Category'}</h2>
+                <p>เพิ่มหรือแก้ไขหมวดหมู่สินค้าและลิงก์รูปภาพปกหมวดหมู่</p>
+              </div>
+              {editingCategory && (
+                <button type="button" className="admin-text-button" onClick={resetCategoryForm}>Cancel</button>
+              )}
+            </div>
+            <div className="admin-product-fields">
+              <div className="admin-form-row">
+                <label>ชื่อหมวดหมู่ (Category Name)
+                  <input
+                    required
+                    value={categoryForm.category_name}
+                    onChange={e => setCategoryForm({ ...categoryForm, category_name: e.target.value })}
+                    placeholder="เช่น Tops, Outerwear"
+                  />
+                </label>
+                <label>ลิงก์รูปภาพหมวดหมู่ (Image URL)
+                  <input
+                    value={categoryForm.image_url}
+                    onChange={e => setCategoryForm({ ...categoryForm, image_url: e.target.value })}
+                    placeholder="https://images.unsplash.com/..."
+                  />
+                </label>
+              </div>
+              <button className="btn dark" type="submit">
+                {editingCategory ? 'Save Category' : 'Add Category'}
+              </button>
+            </div>
+          </form>
+
           <section className="admin-panel">
             <div className="admin-panel-heading"><div><h2>หมวดหมู่สินค้า</h2><p>รายการหมวดหมู่และจำนวนสินค้าในแต่ละหมวดหมู่</p></div></div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>หมวดหมู่สินค้า</th><th>จำนวนสินค้า</th></tr></thead>
+                <thead><tr><th>หมวดหมู่สินค้า</th><th>จำนวนสินค้า</th><th>จัดการ</th></tr></thead>
                 <tbody>
-                  {categoryList.map(category => (
-                    <tr key={category}>
-                      <td><b>{category}</b></td>
-                      <td>{products.filter(product => product.category === category).length} รายการ</td>
+                  {categoriesData.map(cat => (
+                    <tr key={cat.category_id}>
+                      <td>
+                        <div className="admin-product-cell">
+                          {cat.image_url && <img src={cat.image_url} alt="" />}
+                          <b>{cat.category_name}</b>
+                        </div>
+                      </td>
+                      <td>
+                        {products.filter(
+                          p => (p.category || '').trim().toLowerCase() === (cat.category_name || '').trim().toLowerCase()
+                        ).length} รายการ
+                      </td>
+                      <td>
+                        <button className="table-action" onClick={() => startEditCategory(cat)}>Edit</button>
+                        <button className="table-action danger" onClick={() => removeCategory(cat.category_id)}>Delete</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           </section>
-        )}
+        </>}
 
         {tab === 'orders' && (
           <section className="admin-panel">
@@ -362,36 +473,68 @@ function Admin() {
         )}
 
         {tab === 'users' && <>
-          {editingMember && (
-            <form id="admin-member-form" className="admin-form" onSubmit={saveMember}>
-              <div className="admin-panel-heading">
-                <div><h2>แก้ไขข้อมูลสมาชิก #{editingMember}</h2><p>ปรับปรุงชื่อ อีเมล สิทธิ์การใช้งาน และที่อยู่จัดส่ง</p></div>
-                <button type="button" className="admin-text-button" onClick={() => setEditingMember(null)}>ยกเลิก</button>
+          <form id="admin-member-form" className="admin-form" onSubmit={saveMember}>
+            <div className="admin-panel-heading">
+              <div>
+                <h2>{editingMember ? `Edit Member #${editingMember}` : 'Add New Member'}</h2>
+                <p>{editingMember ? 'แก้ไขชื่อ อีเมล สิทธิ์การใช้งาน และที่อยู่จัดส่ง' : 'เพิ่มบัญชีสมาชิกใหม่ลงในฐานข้อมูล'}</p>
               </div>
-              <div className="admin-product-fields">
-                <div className="admin-form-row">
-                  <label>ชื่อ-นามสกุล
-                    <input required value={memberForm.name} onChange={e => setMemberForm({ ...memberForm, name: e.target.value })} />
-                  </label>
-                  <label>อีเมล
-                    <input required type="email" value={memberForm.email} onChange={e => setMemberForm({ ...memberForm, email: e.target.value })} />
-                  </label>
-                </div>
-                <div className="admin-form-row">
-                  <label>ประเภทบัญชี (Role)
-                    <select value={memberForm.role} onChange={e => setMemberForm({ ...memberForm, role: e.target.value })}>
-                      <option value="customer">customer</option>
-                      <option value="admin">admin</option>
-                    </select>
-                  </label>
-                  <label>ที่อยู่จัดส่ง
-                    <input value={memberForm.shippingAddress} onChange={e => setMemberForm({ ...memberForm, shippingAddress: e.target.value })} placeholder="ที่อยู่จัดส่งของสมาชิก" />
-                  </label>
-                </div>
-                <button className="btn dark" type="submit">บันทึกข้อมูลสมาชิก</button>
+              {editingMember && (
+                <button type="button" className="admin-text-button" onClick={resetMemberForm}>Cancel</button>
+              )}
+            </div>
+            <div className="admin-product-fields">
+              <div className="admin-form-row">
+                <label>ชื่อ-นามสกุล (Full Name)
+                  <input
+                    required
+                    value={memberForm.name}
+                    onChange={e => setMemberForm({ ...memberForm, name: e.target.value })}
+                    placeholder="ชื่อ นามสกุล"
+                  />
+                </label>
+                <label>อีเมล (Email)
+                  <input
+                    required
+                    type="email"
+                    value={memberForm.email}
+                    onChange={e => setMemberForm({ ...memberForm, email: e.target.value })}
+                    placeholder="user@example.com"
+                  />
+                </label>
               </div>
-            </form>
-          )}
+              <div className="admin-form-row">
+                {!editingMember && (
+                  <label>รหัสผ่าน (Password อย่างน้อย 6 ตัวอักษร)
+                    <input
+                      required
+                      type="password"
+                      minLength="6"
+                      value={memberForm.password}
+                      onChange={e => setMemberForm({ ...memberForm, password: e.target.value })}
+                      placeholder="อย่างน้อย 6 ตัวอักษร"
+                    />
+                  </label>
+                )}
+                <label>ประเภทบัญชี (Role)
+                  <select value={memberForm.role} onChange={e => setMemberForm({ ...memberForm, role: e.target.value })}>
+                    <option value="customer">customer</option>
+                    <option value="admin">admin</option>
+                  </select>
+                </label>
+                <label>ที่อยู่จัดส่ง (Shipping Address)
+                  <input
+                    value={memberForm.shippingAddress}
+                    onChange={e => setMemberForm({ ...memberForm, shippingAddress: e.target.value })}
+                    placeholder="ที่อยู่จัดส่งของสมาชิก"
+                  />
+                </label>
+              </div>
+              <button className="btn dark" type="submit">
+                {editingMember ? 'Save Member' : 'Add Member'}
+              </button>
+            </div>
+          </form>
 
           <section className="admin-panel">
             <div className="admin-panel-heading"><div><h2>ข้อมูลสมาชิก</h2><p>บัญชีผู้ใช้งานทั้งหมด ({users.length} บัญชี)</p></div></div>
@@ -406,9 +549,9 @@ function Admin() {
                       <td>{item.shippingAddress || '—'}</td>
                       <td><span className="admin-role">{item.role}</span></td>
                       <td>
-                        <button className="table-action" onClick={() => startEditMember(item)}>แก้ไข</button>
+                        <button className="table-action" onClick={() => startEditMember(item)}>Edit</button>
                         {item.id !== user.id && (
-                          <button className="table-action danger" onClick={() => removeMember(item.id)}>ลบ</button>
+                          <button className="table-action danger" onClick={() => removeMember(item.id)}>Delete</button>
                         )}
                       </td>
                     </tr>
@@ -424,8 +567,8 @@ function Admin() {
           {editingReview && (
             <form id="admin-review-form" className="admin-form" onSubmit={saveReview}>
               <div className="admin-panel-heading">
-                <div><h2>แก้ไขรีวิว #{editingReview}</h2><p>ปรับคะแนนหรือข้อความรีวิว</p></div>
-                <button type="button" className="admin-text-button" onClick={() => setEditingReview(null)}>ยกเลิก</button>
+                <div><h2>Edit Review #{editingReview}</h2><p>ปรับคะแนนหรือข้อความรีวิว</p></div>
+                <button type="button" className="admin-text-button" onClick={() => setEditingReview(null)}>Cancel</button>
               </div>
               <div className="admin-product-fields">
                 <label>คะแนน (1-5 ดาว)
@@ -436,7 +579,7 @@ function Admin() {
                 <label>ความคิดเห็น
                   <textarea rows="3" value={reviewForm.comment} onChange={e => setReviewForm({ ...reviewForm, comment: e.target.value })} />
                 </label>
-                <button className="btn dark" type="submit">บันทึกการแก้ไขรีวิว</button>
+                <button className="btn dark" type="submit">Save Review</button>
               </div>
             </form>
           )}
@@ -454,8 +597,8 @@ function Admin() {
                       <td><span className="rating-stars">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span></td>
                       <td>{review.comment}</td>
                       <td>
-                        <button className="table-action" onClick={() => startEditReview(review)}>แก้ไข</button>
-                        <button className="table-action danger" onClick={() => removeReview(review.id)}>ลบ</button>
+                        <button className="table-action" onClick={() => startEditReview(review)}>Edit</button>
+                        <button className="table-action danger" onClick={() => removeReview(review.id)}>Delete</button>
                       </td>
                     </tr>
                   ))}

@@ -142,3 +142,34 @@ export function deleteProduct(id, token) {
     token,
   });
 }
+
+export function createCategory(categoryData, token) {
+  return apiFetch('/api/admin/categories', {
+    method: 'POST',
+    body: categoryData,
+    token,
+  });
+}
+
+export function updateCategory(id, categoryData, token) {
+  return apiFetch(`/api/admin/categories/${id}`, {
+    method: 'PUT',
+    body: categoryData,
+    token,
+  });
+}
+
+export function deleteCategory(id, token) {
+  return apiFetch(`/api/admin/categories/${id}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+export function createAdminUser(userData, token) {
+  return apiFetch('/api/admin/users', {
+    method: 'POST',
+    body: userData,
+    token,
+  });
+}
