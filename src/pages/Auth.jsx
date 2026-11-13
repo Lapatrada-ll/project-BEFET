@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
-import { register as apiRegister, login as apiLogin } from '../api'; // Verify path to your api.js
+import { register as apiRegister, login as apiLogin } from '../api/backend';
 
 function Auth({ mode }) {
   const { setUser, flash } = useStore();
