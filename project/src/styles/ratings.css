@@ -1,0 +1,6 @@
+/* --- Revision: cleaner storefront controls and star rating --- */
+.admin-nav-link{font-size:11px!important;letter-spacing:0!important;padding:9px 15px;border:1px solid #302a26;background:#302a26;color:#fff!important;border-radius:3px}
+.rating-picker{display:flex;gap:7px;align-items:center}
+.rating-picker button{border:0;background:transparent;padding:2px;color:#d5cec5;font-size:27px;line-height:1}
+.rating-picker button.active{color:#b88945}
+
