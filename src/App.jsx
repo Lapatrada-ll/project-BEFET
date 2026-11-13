@@ -1,8 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Store } from './context/StoreContext';
-import { initialReviews } from './data';
-import { getProducts } from './api/backend';
+import {
+  getProducts,
+  getReviews,
+  getFavorites,
+  addFavorite,
+  removeFavorite,
+} from './api/backend';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -16,7 +21,6 @@ import Checkout from './pages/Checkout';
 import Success from './pages/Success';
 import Account from './pages/Account';
 import { NotFound } from './components/Common';
-import { getProducts, getFavorites, addFavorite, removeFavorite } from './api/backend';
 
 const load = (key, fallback) => {
   try {
@@ -28,22 +32,24 @@ const load = (key, fallback) => {
 
 function App() {
   const [products, setProducts] = useState([]);
-  const [users, setUsers] = useState(() => load('yc_users', []));
+  const [users, setUsers] = useState([]);
   const [user, setUser] = useState(() => load('yc_user', null));
   const [cart, setCart] = useState(() => load('yc_cart', []));
   const [favorites, setFavorites] = useState([]);
-  const [orders, setOrders] = useState(() => load('yc_orders', []));
+  const [orders, setOrders] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [notice, setNotice] = useState('');
-  
 
-    useEffect(() => {
+  // Load products & reviews from Go backend -> Supabase
+  useEffect(() => {
     getProducts().then(setProducts).catch(() => setProducts([]));
     getReviews().then(setReviews).catch(() => setReviews([]));
     localStorage.removeItem('yc_products');
     localStorage.removeItem('yc_reviews');
+    localStorage.removeItem('yc_users');
   }, []);
-  
+
+  // Load user's wishlist from database when logged in
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!user || !token) {
@@ -55,6 +61,7 @@ function App() {
       .catch(() => setFavorites([]));
     localStorage.removeItem('yc_favorites');
   }, [user]);
+
   const toggleFavorite = async (productId) => {
     const token = localStorage.getItem('token');
     if (!user || !token) {
@@ -62,7 +69,6 @@ function App() {
       return;
     }
     const liked = favorites.includes(productId);
-    // Optimistically update UI
     setFavorites(old => liked ? old.filter(id => id !== productId) : [...old, productId]);
     try {
       if (liked) {
@@ -73,26 +79,13 @@ function App() {
         flash('เพิ่มในรายการโปรดแล้ว');
       }
     } catch (err) {
-      // Revert if server failed
       setFavorites(old => liked ? [...old, productId] : old.filter(id => id !== productId));
       flash(err.message || 'ไม่สามารถบันทึกรายการโปรดได้');
     }
   };
 
-  // Load products from Go backend -> Supabase
-  useEffect(() => {
-    getProducts()
-      .then(setProducts)
-      .catch(() => setProducts([]));
-    localStorage.removeItem('yc_products');
-  }, []);
-
-  useEffect(() => { localStorage.setItem('yc_users', JSON.stringify(users)); }, [users]);
   useEffect(() => { localStorage.setItem('yc_user', JSON.stringify(user)); }, [user]);
   useEffect(() => { localStorage.setItem('yc_cart', JSON.stringify(cart)); }, [cart]);
-  useEffect(() => { localStorage.setItem('yc_favorites', JSON.stringify(favorites)); }, [favorites]);
-  useEffect(() => { localStorage.setItem('yc_orders', JSON.stringify(orders)); }, [orders]);
-  useEffect(() => { localStorage.setItem('yc_reviews', JSON.stringify(reviews)); }, [reviews]);
 
   const flash = message => {
     setNotice(message);
@@ -106,6 +99,7 @@ function App() {
     user, setUser,
     cart, setCart,
     favorites, setFavorites,
+    toggleFavorite,
     orders, setOrders,
     reviews, setReviews,
     flash,
