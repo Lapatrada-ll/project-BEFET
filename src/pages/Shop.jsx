@@ -10,12 +10,17 @@ function Shop() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Read category directly from URL query param (?category=...)
-  const queryParam = new URLSearchParams(location.search).get('category');
-  const currentCategory = queryParam || 'All';
-
+  // Initial category from URL or default to 'All'
+  const urlCategory = new URLSearchParams(location.search).get('category') || 'All';
+  const [selectedCategory, setSelectedCategory] = useState(urlCategory);
   const [search, setSearch] = useState('');
   const [categories, setCategories] = useState(['All']);
+
+  // Sync if user navigated from another page (like Home page banner click)
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(location.search).get('category') || 'All';
+    setSelectedCategory(fromUrl);
+  }, [location.search]);
 
   useEffect(() => {
     getCategories()
@@ -28,6 +33,7 @@ function Shop() {
   }, []);
 
   const handleSelectCategory = (cat) => {
+    setSelectedCategory(cat);
     if (cat.toLowerCase() === 'all') {
       navigate('/shop', { replace: true });
     } else {
@@ -45,28 +51,28 @@ function Shop() {
 
   const shown = useMemo(() => {
     if (!Array.isArray(products)) return [];
-    const selected = currentCategory.trim().toLowerCase();
+    const activeCat = selectedCategory.trim().toLowerCase();
     const keyword = search.trim().toLowerCase();
     return products.filter(p => {
       const matchCat =
-        selected === 'all' ||
-        (p.category || '').trim().toLowerCase() === selected;
+        activeCat === 'all' ||
+        (p.category || '').trim().toLowerCase() === activeCat;
       const matchSearch =
         !keyword || (p.name || '').toLowerCase().includes(keyword);
       return matchCat && matchSearch;
     });
-  }, [products, currentCategory, search]);
+  }, [products, selectedCategory, search]);
 
   return (
     <section className="container page-section">
       <div className="page-title">
         <span className="eyebrow">THE COLLECTION</span>
-        <h1>{currentCategory === 'All' ? 'Shop all' : currentCategory}</h1>
+        <h1>{selectedCategory === 'All' ? 'Shop all' : selectedCategory}</h1>
       </div>
       <div className="shop-tools">
         <div className="filter-pills">
           {categories.map(c => {
-            const isActive = currentCategory.toLowerCase() === c.toLowerCase();
+            const isActive = selectedCategory.toLowerCase() === c.toLowerCase();
             return (
               <button
                 type="button"
@@ -74,7 +80,7 @@ function Shop() {
                 className={isActive ? 'active' : ''}
                 onClick={() => handleSelectCategory(c)}
               >
-                <span>{c}</span> <span>({countForCategory(c)})</span>
+                <span>{c}</span> <span translate="no">({countForCategory(c)})</span>
               </button>
             );
           })}
@@ -88,12 +94,12 @@ function Shop() {
         </div>
       </div>
 
-      <p className="result-count">
-        <span>Showing {shown.length} {shown.length === 1 ? 'product' : 'products'}</span>
-        {currentCategory.toLowerCase() !== 'all' && <span> in {currentCategory}</span>}
+      <p className="result-count" key={`${selectedCategory}-${shown.length}`} translate="no">
+        Showing {shown.length} {shown.length === 1 ? 'product' : 'products'}
+        {selectedCategory !== 'All' ? ` in ${selectedCategory}` : ''}
       </p>
 
-      <div key={currentCategory} className="shop-content-area">
+      <div key={selectedCategory} className="shop-content-area">
         {shown.length > 0 ? (
           <div className="product-grid">
             {shown.map(p => (
