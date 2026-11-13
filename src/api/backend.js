@@ -69,15 +69,57 @@ export function removeFavorite(productId, token) {
 }
 
 
+// ---------- Reviews & Admin ----------
 export function getReviews() {
   return apiFetch('/api/reviews');
 }
+
+export function createReview(productId, rating, comment, token) {
+  return apiFetch('/api/reviews', {
+    method: 'POST',
+    body: { productId, rating, comment },
+    token,
+  });
+}
+
+export function updateReview(id, reviewData, token) {
+  return apiFetch(`/api/admin/reviews/${id}`, {
+    method: 'PUT',
+    body: reviewData,
+    token,
+  });
+}
+
+export function deleteReview(id, token) {
+  return apiFetch(`/api/admin/reviews/${id}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
 export function getAdminUsers(token) {
   return apiFetch('/api/admin/users', { token });
 }
+
+export function updateAdminUser(id, userData, token) {
+  return apiFetch(`/api/admin/users/${id}`, {
+    method: 'PUT',
+    body: userData,
+    token,
+  });
+}
+
+export function deleteAdminUser(id, token) {
+  return apiFetch(`/api/admin/users/${id}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
 export function getAdminOrders(token) {
   return apiFetch('/api/admin/orders', { token });
 }
+
 export function createProduct(productData, token) {
   return apiFetch('/api/admin/products', {
     method: 'POST',
@@ -85,6 +127,7 @@ export function createProduct(productData, token) {
     token,
   });
 }
+
 export function updateProduct(id, productData, token) {
   return apiFetch(`/api/admin/products/${id}`, {
     method: 'PUT',
@@ -92,6 +135,7 @@ export function updateProduct(id, productData, token) {
     token,
   });
 }
+
 export function deleteProduct(id, token) {
   return apiFetch(`/api/admin/products/${id}`, {
     method: 'DELETE',

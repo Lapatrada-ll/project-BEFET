@@ -33,9 +33,17 @@ function App() {
   const [cart, setCart] = useState(() => load('yc_cart', []));
   const [favorites, setFavorites] = useState([]);
   const [orders, setOrders] = useState(() => load('yc_orders', []));
-  const [reviews, setReviews] = useState(() => load('yc_reviews', initialReviews));
+  const [reviews, setReviews] = useState([]);
   const [notice, setNotice] = useState('');
+  
 
+    useEffect(() => {
+    getProducts().then(setProducts).catch(() => setProducts([]));
+    getReviews().then(setReviews).catch(() => setReviews([]));
+    localStorage.removeItem('yc_products');
+    localStorage.removeItem('yc_reviews');
+  }, []);
+  
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!user || !token) {
@@ -70,7 +78,7 @@ function App() {
       flash(err.message || 'ไม่สามารถบันทึกรายการโปรดได้');
     }
   };
-  
+
   // Load products from Go backend -> Supabase
   useEffect(() => {
     getProducts()
