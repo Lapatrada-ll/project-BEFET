@@ -14,10 +14,12 @@ function Shop() {
   const [search, setSearch] = useState('');
   const [categories, setCategories] = useState(['All']);
 
-  // Sync when navigating from Home page (?category=...)
+  // Sync category if URL query changes
   useEffect(() => {
     const paramCat = new URLSearchParams(location.search).get('category');
-    setCategory(paramCat || 'All');
+    if (paramCat) {
+      setCategory(paramCat);
+    }
   }, [location.search]);
 
   useEffect(() => {
@@ -31,6 +33,7 @@ function Shop() {
   }, []);
 
   const countForCategory = (cat) => {
+    if (!Array.isArray(products)) return 0;
     if (cat.toLowerCase() === 'all') return products.length;
     return products.filter(
       p => (p.category || '').trim().toLowerCase() === cat.trim().toLowerCase()
@@ -38,8 +41,9 @@ function Shop() {
   };
 
   const shown = useMemo(() => {
-    const selected = category.trim().toLowerCase();
-    const keyword = search.trim().toLowerCase();
+    if (!Array.isArray(products)) return [];
+    const selected = (category || 'All').trim().toLowerCase();
+    const keyword = (search || '').trim().toLowerCase();
     return products.filter(p => {
       const matchCat =
         selected === 'all' ||
@@ -58,16 +62,19 @@ function Shop() {
       </div>
       <div className="shop-tools">
         <div className="filter-pills">
-          {categories.map(c => (
-            <button
-              type="button"
-              key={c}
-              className={category.toLowerCase() === c.toLowerCase() ? 'active' : ''}
-              onClick={() => setCategory(c)}
-            >
-              {c} ({countForCategory(c)})
-            </button>
-          ))}
+          {categories.map(c => {
+            const isActive = category.toLowerCase() === c.toLowerCase();
+            return (
+              <button
+                type="button"
+                key={c}
+                className={isActive ? 'active' : ''}
+                onClick={() => setCategory(c)}
+              >
+                <span>{c}</span> <span>({countForCategory(c)})</span>
+              </button>
+            );
+          })}
         </div>
         <div className="shop-controls">
           <input
@@ -77,19 +84,23 @@ function Shop() {
           />
         </div>
       </div>
+
       <p className="result-count">
-        Showing {shown.length} {shown.length === 1 ? 'product' : 'products'}
-        {category !== 'All' ? ` in ${category}` : ''}
+        <span>Showing {shown.length} {shown.length === 1 ? 'product' : 'products'}</span>
+        {category !== 'All' && <span> in {category}</span>}
       </p>
-      {shown.length ? (
-        <div className="product-grid">
-          {shown.map(p => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </div>
-      ) : (
-        <Empty title="ไม่พบสินค้า" desc="ลองค้นหาด้วยคำอื่นหรือเลือกหมวดหมู่ใหม่" />
-      )}
+
+      <div key={category} className="shop-content-area">
+        {shown.length > 0 ? (
+          <div className="product-grid">
+            {shown.map(p => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        ) : (
+          <Empty title="ไม่พบสินค้า" desc="ลองค้นหาด้วยคำอื่นหรือเลือกหมวดหมู่ใหม่" />
+        )}
+      </div>
     </section>
   );
 }
