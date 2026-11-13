@@ -42,3 +42,8 @@ export function login(email, password) {
 export function getCategories() {
   return apiFetch('/api/categories'); // [{ category_id, category_name, image_url }]
 }
+
+// ---------- Products ----------
+export function getProducts() {
+  return apiFetch('/api/products');
+}
