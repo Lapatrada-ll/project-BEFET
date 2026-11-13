@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 function Footer() {
     return <footer className="footer">
         <div className="footer-inner"><div>
-            <div className="logo light">YES, CLOTH V.12</div>
+            <div className="logo light">YES, CLOTH V.15</div>
         </div>
             <div><b>EXPLORE</b><Link to="/shop">Shop all</Link>
                 <Link to="/account">My account</Link>
