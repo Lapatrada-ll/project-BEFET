@@ -67,3 +67,34 @@ export function removeFavorite(productId, token) {
     token,
   });
 }
+
+
+export function getReviews() {
+  return apiFetch('/api/reviews');
+}
+export function getAdminUsers(token) {
+  return apiFetch('/api/admin/users', { token });
+}
+export function getAdminOrders(token) {
+  return apiFetch('/api/admin/orders', { token });
+}
+export function createProduct(productData, token) {
+  return apiFetch('/api/admin/products', {
+    method: 'POST',
+    body: productData,
+    token,
+  });
+}
+export function updateProduct(id, productData, token) {
+  return apiFetch(`/api/admin/products/${id}`, {
+    method: 'PUT',
+    body: productData,
+    token,
+  });
+}
+export function deleteProduct(id, token) {
+  return apiFetch(`/api/admin/products/${id}`, {
+    method: 'DELETE',
+    token,
+  });
+}
