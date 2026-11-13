@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { getCategories } from '../api/backend';
 import ProductCard from '../components/ProductCard';
@@ -7,24 +7,28 @@ import { Empty } from '../components/Common';
 
 function Shop() {
   const { products } = useStore();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const category = searchParams.get('category') || 'All';
+  const location = useLocation();
+  const [category, setCategory] = useState(
+    () => new URLSearchParams(location.search).get('category') || 'All'
+  );
   const [search, setSearch] = useState('');
   const [categories, setCategories] = useState(['All']);
 
+  // Sync when navigating from Home page (?category=...)
+  useEffect(() => {
+    const paramCat = new URLSearchParams(location.search).get('category');
+    setCategory(paramCat || 'All');
+  }, [location.search]);
+
   useEffect(() => {
     getCategories()
-      .then(list => setCategories(['All', ...list.map(c => c.category_name)]))
+      .then(list => {
+        if (Array.isArray(list)) {
+          setCategories(['All', ...list.map(c => c.category_name)]);
+        }
+      })
       .catch(() => setCategories(['All']));
   }, []);
-
-  const selectCategory = (cat) => {
-    if (cat === 'All') {
-      setSearchParams({});
-    } else {
-      setSearchParams({ category: cat });
-    }
-  };
 
   const countForCategory = (cat) => {
     if (cat.toLowerCase() === 'all') return products.length;
@@ -59,7 +63,7 @@ function Shop() {
               type="button"
               key={c}
               className={category.toLowerCase() === c.toLowerCase() ? 'active' : ''}
-              onClick={() => selectCategory(c)}
+              onClick={() => setCategory(c)}
             >
               {c} ({countForCategory(c)})
             </button>
