@@ -6,7 +6,8 @@ import { register as apiRegister, login as apiLogin } from '../api/backend';
 function Auth({ mode }) {
   const { setUser, flash } = useStore();
   const nav = useNavigate();
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,8 +21,9 @@ function Auth({ mode }) {
 
     try {
       if (isRegister) {
-        // 1. Send register request to Go backend
-        await apiRegister(name, email, password);
+        // 1. Combine first + last name -> "ชื่อ นามสกุล" (backend needs both words)
+        const fullName = `${firstName.trim()} ${lastName.trim()}`;
+        await apiRegister(fullName, email, password);
 
         // 2. Auto-login right after registering so the user gets their JWT token
         const loginData = await apiLogin(email, password);
@@ -70,14 +72,25 @@ function Auth({ mode }) {
         <p>{isRegister ? 'สมัครสมาชิกเพื่อบันทึกรายการโปรดและสั่งซื้อสินค้า' : 'เข้าสู่ระบบ Yes, Cloth'}</p>
 
         {isRegister && (
-          <div className="field">
-            <label>FULL NAME</label>
-            <input
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="ชื่อ-นามสกุล"
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="field">
+              <label>FIRST NAME</label>
+              <input
+                required
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="ชื่อ"
+              />
+            </div>
+            <div className="field">
+              <label>LAST NAME</label>
+              <input
+                required
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="นามสกุล"
+              />
+            </div>
           </div>
         )}
 
