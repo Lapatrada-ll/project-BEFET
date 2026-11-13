@@ -3,12 +3,27 @@ import { useParams } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { money } from '../data';
 import { NotFound } from '../components/Common';
+import { createReview } from '../api/backend';
+
 function ProductDetail() {
   const { id } = useParams(); const { products, cart, setCart, user, favorites, setFavorites, reviews, setReviews, flash } = useStore();
   const p = products.find(x => x.id === Number(id)); const [size, setSize] = useState('M'); const [color, setColor] = useState('White'); const [qty, setQty] = useState(1); const [rating, setRating] = useState(5); const [comment, setComment] = useState('');
   if (!p) return <NotFound />;
   const add = () => { if (!user) return flash('กรุณาเข้าสู่ระบบก่อนเพิ่มสินค้าลงตะกร้า'); if (qty > p.stock) return flash('สินค้าในสต็อกไม่เพียงพอ'); const key = `${p.id}-${size}-${color}`; setCart(old => { const found = old.find(x => x.key === key); return found ? old.map(x => x.key === key ? { ...x, qty: x.qty + qty } : x) : [...old, { key, productId: p.id, size, color, qty }]; }); flash('เพิ่มสินค้าลงตะกร้าแล้ว'); };
-  const submitReview = e => { e.preventDefault(); if (!user) return flash('กรุณาเข้าสู่ระบบก่อนรีวิว'); if (!comment.trim()) return; setReviews(old => [{ id: Date.now(), productId: p.id, name: user.name, rating, comment }, ...old]); setComment(''); flash('เพิ่มรีวิวเรียบร้อย'); };
+  const submitReview = async (e) => {
+    e.preventDefault();
+    const token = localStorage.getItem('token');
+    if (!user || !token) return flash('กรุณาเข้าสู่ระบบก่อนรีวิว');
+    if (!comment.trim()) return;
+    try {
+      const saved = await createReview(p.id, rating, comment, token);
+      setReviews(old => [saved, ...old]);
+      setComment('');
+      flash('เพิ่มรีวิวเรียบร้อย');
+    } catch (err) {
+      flash(err.message || 'ไม่สามารถส่งรีวิวได้');
+    }
+  };
   const liked = favorites.includes(p.id);
   return <section className="container detail-layout page-section">
     <div className="detail-photo">

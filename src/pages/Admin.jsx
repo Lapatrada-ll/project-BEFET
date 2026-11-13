@@ -7,24 +7,40 @@ import {
   getProducts,
   getReviews,
   getAdminUsers,
+  updateAdminUser,
+  deleteAdminUser,
   getAdminOrders,
   createProduct,
   updateProduct,
   deleteProduct,
+  updateReview,
+  deleteReview,
 } from '../api/backend';
 import { LoginRequired } from '../components/Common';
 
-const emptyForm = { name: '', category: 'Tops', price: '', stock: '', image: '', description: '' };
+const emptyProductForm = { name: '', category: 'Tops', price: '', stock: '', image: '', description: '' };
+const emptyMemberForm = { name: '', email: '', role: 'customer', shippingAddress: '' };
+const emptyReviewForm = { rating: 5, comment: '' };
 
 function Admin() {
   const { user, products, setProducts, orders, setOrders, users, setUsers, reviews, setReviews, flash } = useStore();
   const [tab, setTab] = useState('overview');
+
+  // Product editor state
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(emptyProductForm);
   const [imageError, setImageError] = useState(false);
   const [categoryList, setCategoryList] = useState(['Tops', 'Bottoms', 'Dresses', 'Accessories']);
 
-  // Fetch live data from database when Admin opens
+  // Member editor state
+  const [editingMember, setEditingMember] = useState(null);
+  const [memberForm, setMemberForm] = useState(emptyMemberForm);
+
+  // Review editor state
+  const [editingReview, setEditingReview] = useState(null);
+  const [reviewForm, setReviewForm] = useState(emptyReviewForm);
+
+  // Fetch live data from database when Admin opens or switches tabs
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (user?.role !== 'admin' || !token) return;
@@ -38,7 +54,7 @@ function Admin() {
     getAdminUsers(token).then(setUsers).catch(() => {});
     getAdminOrders(token).then(setOrders).catch(() => {});
     getReviews().then(setReviews).catch(() => {});
-  }, [user, setUsers, setOrders, setReviews]);
+  }, [user, tab, setUsers, setOrders, setReviews]);
 
   const memberCount = users.filter(item => item.role !== 'admin').length;
   const totalSales = orders
@@ -56,9 +72,10 @@ function Admin() {
 
   if (user?.role !== 'admin') return <LoginRequired admin />;
 
+  // ---------- Product handlers ----------
   const resetForm = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm(emptyProductForm);
     setImageError(false);
   };
 
@@ -113,6 +130,86 @@ function Admin() {
       flash('ลบสินค้าแล้ว');
     } catch (err) {
       flash(err.message || 'ไม่สามารถลบสินค้าได้');
+    }
+  };
+
+  // ---------- Member handlers ----------
+  const startEditMember = (member) => {
+    setEditingMember(member.id);
+    setMemberForm({
+      name: member.name || '',
+      email: member.email || '',
+      role: member.role || 'customer',
+      shippingAddress: member.shippingAddress || '',
+    });
+    document.getElementById('admin-member-form')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const saveMember = async (e) => {
+    e.preventDefault();
+    if (!editingMember) return;
+    const token = localStorage.getItem('token');
+    try {
+      await updateAdminUser(editingMember, memberForm, token);
+      const freshUsers = await getAdminUsers(token);
+      setUsers(freshUsers);
+      setEditingMember(null);
+      setMemberForm(emptyMemberForm);
+      flash('บันทึกข้อมูลสมาชิกเรียบร้อยแล้ว');
+    } catch (err) {
+      flash(err.message || 'ไม่สามารถแก้ไขข้อมูลสมาชิกได้');
+    }
+  };
+
+  const removeMember = async (id) => {
+    if (!window.confirm('ต้องการลบบัญชีสมาชิกนี้หรือไม่?')) return;
+    const token = localStorage.getItem('token');
+    try {
+      await deleteAdminUser(id, token);
+      setUsers(old => old.filter(u => u.id !== id));
+      if (editingMember === id) setEditingMember(null);
+      flash('ลบบัญชีสมาชิกแล้ว');
+    } catch (err) {
+      flash(err.message || 'ไม่สามารถลบสมาชิกได้');
+    }
+  };
+
+  // ---------- Review handlers ----------
+  const startEditReview = (rv) => {
+    setEditingReview(rv.id);
+    setReviewForm({
+      rating: rv.rating || 5,
+      comment: rv.comment || '',
+    });
+    document.getElementById('admin-review-form')?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  const saveReview = async (e) => {
+    e.preventDefault();
+    if (!editingReview) return;
+    const token = localStorage.getItem('token');
+    try {
+      await updateReview(editingReview, { rating: Number(reviewForm.rating), comment: reviewForm.comment }, token);
+      const freshReviews = await getReviews();
+      setReviews(freshReviews);
+      setEditingReview(null);
+      setReviewForm(emptyReviewForm);
+      flash('บันทึกการแก้ไขรีวิวแล้ว');
+    } catch (err) {
+      flash(err.message || 'ไม่สามารถแก้ไขรีวิวได้');
+    }
+  };
+
+  const removeReview = async (id) => {
+    if (!window.confirm('ต้องการลบรีวิวนี้หรือไม่?')) return;
+    const token = localStorage.getItem('token');
+    try {
+      await deleteReview(id, token);
+      setReviews(old => old.filter(r => r.id !== id));
+      if (editingReview === id) setEditingReview(null);
+      flash('ลบรีวิวเรียบร้อยแล้ว');
+    } catch (err) {
+      flash(err.message || 'ไม่สามารถลบรีวิวได้');
     }
   };
 
@@ -264,39 +361,102 @@ function Admin() {
           </section>
         )}
 
-        {tab === 'users' && (
+        {tab === 'users' && <>
+          {editingMember && (
+            <form id="admin-member-form" className="admin-form" onSubmit={saveMember}>
+              <div className="admin-panel-heading">
+                <div><h2>แก้ไขข้อมูลสมาชิก #{editingMember}</h2><p>ปรับปรุงชื่อ อีเมล สิทธิ์การใช้งาน และที่อยู่จัดส่ง</p></div>
+                <button type="button" className="admin-text-button" onClick={() => setEditingMember(null)}>ยกเลิก</button>
+              </div>
+              <div className="admin-product-fields">
+                <div className="admin-form-row">
+                  <label>ชื่อ-นามสกุล
+                    <input required value={memberForm.name} onChange={e => setMemberForm({ ...memberForm, name: e.target.value })} />
+                  </label>
+                  <label>อีเมล
+                    <input required type="email" value={memberForm.email} onChange={e => setMemberForm({ ...memberForm, email: e.target.value })} />
+                  </label>
+                </div>
+                <div className="admin-form-row">
+                  <label>ประเภทบัญชี (Role)
+                    <select value={memberForm.role} onChange={e => setMemberForm({ ...memberForm, role: e.target.value })}>
+                      <option value="customer">customer</option>
+                      <option value="admin">admin</option>
+                    </select>
+                  </label>
+                  <label>ที่อยู่จัดส่ง
+                    <input value={memberForm.shippingAddress} onChange={e => setMemberForm({ ...memberForm, shippingAddress: e.target.value })} placeholder="ที่อยู่จัดส่งของสมาชิก" />
+                  </label>
+                </div>
+                <button className="btn dark" type="submit">บันทึกข้อมูลสมาชิก</button>
+              </div>
+            </form>
+          )}
+
           <section className="admin-panel">
-            <div className="admin-panel-heading"><div><h2>ข้อมูลสมาชิก</h2><p>บัญชีผู้ใช้งานทั้งหมด</p></div></div>
+            <div className="admin-panel-heading"><div><h2>ข้อมูลสมาชิก</h2><p>บัญชีผู้ใช้งานทั้งหมด ({users.length} บัญชี)</p></div></div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>ชื่อ</th><th>อีเมล</th><th>ประเภทบัญชี</th></tr></thead>
+                <thead><tr><th>ชื่อ</th><th>อีเมล</th><th>ที่อยู่จัดส่ง</th><th>ประเภทบัญชี</th><th>จัดการ</th></tr></thead>
                 <tbody>
                   {users.map(item => (
                     <tr key={item.id}>
-                      <td>{item.name}</td>
+                      <td><b>{item.name}</b></td>
                       <td>{item.email}</td>
+                      <td>{item.shippingAddress || '—'}</td>
                       <td><span className="admin-role">{item.role}</span></td>
+                      <td>
+                        <button className="table-action" onClick={() => startEditMember(item)}>แก้ไข</button>
+                        {item.id !== user.id && (
+                          <button className="table-action danger" onClick={() => removeMember(item.id)}>ลบ</button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              {!users.length && <div className="admin-empty">ยังไม่มีสมาชิก</div>}
             </div>
           </section>
-        )}
+        </>}
 
-        {tab === 'reviews' && (
+        {tab === 'reviews' && <>
+          {editingReview && (
+            <form id="admin-review-form" className="admin-form" onSubmit={saveReview}>
+              <div className="admin-panel-heading">
+                <div><h2>แก้ไขรีวิว #{editingReview}</h2><p>ปรับคะแนนหรือข้อความรีวิว</p></div>
+                <button type="button" className="admin-text-button" onClick={() => setEditingReview(null)}>ยกเลิก</button>
+              </div>
+              <div className="admin-product-fields">
+                <label>คะแนน (1-5 ดาว)
+                  <select value={reviewForm.rating} onChange={e => setReviewForm({ ...reviewForm, rating: Number(e.target.value) })}>
+                    {[5, 4, 3, 2, 1].map(n => <option key={n} value={n}>{n} ดาว ({'★'.repeat(n)})</option>)}
+                  </select>
+                </label>
+                <label>ความคิดเห็น
+                  <textarea rows="3" value={reviewForm.comment} onChange={e => setReviewForm({ ...reviewForm, comment: e.target.value })} />
+                </label>
+                <button className="btn dark" type="submit">บันทึกการแก้ไขรีวิว</button>
+              </div>
+            </form>
+          )}
+
           <section className="admin-panel">
-            <div className="admin-panel-heading"><div><h2>รีวิวจากสมาชิก</h2><p>ความคิดเห็นและคะแนนสินค้าทั้งหมด</p></div></div>
+            <div className="admin-panel-heading"><div><h2>รีวิวจากสมาชิก</h2><p>ความคิดเห็นและคะแนนสินค้าทั้งหมด ({reviews.length} รายการ)</p></div></div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>สมาชิก</th><th>สินค้า</th><th>คะแนน</th><th>ความคิดเห็น</th></tr></thead>
+                <thead><tr><th>สมาชิก</th><th>สินค้า</th><th>คะแนน</th><th>ความคิดเห็น</th><th>จัดการ</th></tr></thead>
                 <tbody>
                   {reviews.map(review => (
                     <tr key={review.id}>
-                      <td>{review.name}</td>
-                      <td>{products.find(product => product.id === review.productId)?.name || '—'}</td>
+                      <td><b>{review.name}</b></td>
+                      <td>{products.find(product => product.id === review.productId)?.name || `#${review.productId}`}</td>
                       <td><span className="rating-stars">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span></td>
                       <td>{review.comment}</td>
+                      <td>
+                        <button className="table-action" onClick={() => startEditReview(review)}>แก้ไข</button>
+                        <button className="table-action danger" onClick={() => removeReview(review.id)}>ลบ</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -304,7 +464,7 @@ function Admin() {
               {!reviews.length && <div className="admin-empty">ยังไม่มีรีวิว</div>}
             </div>
           </section>
-        )}
+        </>}
       </div>
     </section>
   );
