@@ -173,3 +173,36 @@ export function createAdminUser(userData, token) {
     token,
   });
 }
+
+// ---------- Cart & Orders (DB) ----------
+export function getCart(token) {
+  return apiFetch('/api/cart', { token });
+}
+
+export function addToCart(variantId, qty, token) {
+  return apiFetch('/api/cart', {
+    method: 'POST',
+    body: { variant_id: variantId, qty },
+    token,
+  });
+}
+
+export function updateCart(variantId, qty, token) {
+  return apiFetch('/api/cart', {
+    method: 'PUT',
+    body: { variant_id: variantId, qty },
+    token,
+  });
+}
+
+export function placeOrder(items, address, token) {
+  return apiFetch('/api/checkout', {
+    method: 'POST',
+    body: { items, address },
+    token,
+  });
+}
+
+export function getMyOrders(token) {
+  return apiFetch('/api/orders/mine', { token });
+}

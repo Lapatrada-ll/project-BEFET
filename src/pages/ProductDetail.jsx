@@ -4,12 +4,41 @@ import { useStore } from '../context/StoreContext';
 import { money } from '../data';
 import { NotFound } from '../components/Common';
 import { createReview } from '../api/backend';
+import { addToCart } from '../api/backend';
+
 
 function ProductDetail() {
   const { id } = useParams(); const { products, cart, setCart, user, favorites, setFavorites, reviews, setReviews, flash } = useStore();
   const p = products.find(x => x.id === Number(id)); const [size, setSize] = useState('M'); const [color, setColor] = useState('White'); const [qty, setQty] = useState(1); const [rating, setRating] = useState(5); const [comment, setComment] = useState('');
   if (!p) return <NotFound />;
-  const add = () => { if (!user) return flash('กรุณาเข้าสู่ระบบก่อนเพิ่มสินค้าลงตะกร้า'); if (qty > p.stock) return flash('สินค้าในสต็อกไม่เพียงพอ'); const key = `${p.id}-${size}-${color}`; setCart(old => { const found = old.find(x => x.key === key); return found ? old.map(x => x.key === key ? { ...x, qty: x.qty + qty } : x) : [...old, { key, productId: p.id, size, color, qty }]; }); flash('เพิ่มสินค้าลงตะกร้าแล้ว'); };
+    const add = async () => {
+    if (!user) return flash('กรุณาเข้าสู่ระบบก่อนเพิ่มสินค้าลงตะกร้า');
+    if (qty > p.stock) return flash('สินค้าในสต็อกไม่เพียงพอ');
+
+    // Find the matching variant_id for the chosen size & color
+    const matchedVariant = (p.variants || []).find(
+      v => v.size.toLowerCase() === size.toLowerCase() && v.color.toLowerCase() === color.toLowerCase()
+    );
+    const variantId = matchedVariant?.variant_id || (p.variants?.[0]?.variant_id ?? p.id);
+
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        await addToCart(variantId, qty, token);
+      } catch (err) {
+        console.error('Failed to sync cart to server:', err);
+      }
+    }
+
+    const key = `${p.id}-${size}-${color}`;
+    setCart(old => {
+      const found = old.find(x => x.key === key);
+      return found
+        ? old.map(x => (x.key === key ? { ...x, qty: x.qty + qty } : x))
+        : [...old, { key, productId: p.id, variant_id: variantId, size, color, qty }];
+    });
+    flash('เพิ่มสินค้าลงตะกร้าแล้ว');
+  };
   const submitReview = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
@@ -24,6 +53,7 @@ function ProductDetail() {
       flash(err.message || 'ไม่สามารถส่งรีวิวได้');
     }
   };
+  
   const liked = favorites.includes(p.id);
   return <section className="container detail-layout page-section">
     <div className="detail-photo">

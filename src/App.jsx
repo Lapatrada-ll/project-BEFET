@@ -21,6 +21,7 @@ import Checkout from './pages/Checkout';
 import Success from './pages/Success';
 import Account from './pages/Account';
 import { NotFound } from './components/Common';
+import { getCart } from './api/backend';
 
 const load = (key, fallback) => {
   try {
@@ -46,6 +47,29 @@ function App() {
   const [reviews, setReviews] = useState([]);
   const [notice, setNotice] = useState('');
 
+    useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (user?.id && token) {
+      getCart(token)
+        .then(items => {
+          if (Array.isArray(items) && items.length > 0) {
+            setCart(items.map(it => ({
+              key: `${it.productId}-${it.size}-${it.color}`,
+              productId: it.productId,
+              variant_id: it.variant_id,
+              size: it.size,
+              color: it.color,
+              qty: it.qty,
+            })));
+          } else {
+            setCart(load(`yc_cart_${user.id}`, []));
+          }
+        })
+        .catch(() => setCart(load(`yc_cart_${user.id}`, [])));
+    } else {
+      setCart([]);
+    }
+  }, [user?.id]);
   // Load products & reviews from Go backend -> Supabase
   useEffect(() => {
     getProducts().then(setProducts).catch(() => setProducts([]));

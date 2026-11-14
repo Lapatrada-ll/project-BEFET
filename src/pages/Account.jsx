@@ -3,13 +3,26 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { money } from '../data';
 import { Empty, LoginRequired } from '../components/Common';
+import { getMyOrders } from '../api/backend';
 
 function Account() {
   const { user, orders, setUser, flash } = useStore();
+   const [myOrders, setMyOrders] = useState([]);
   const nav = useNavigate();
 
   if (!user) return <LoginRequired />;
-
+  
+   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      getMyOrders(token)
+        .then(res => {
+          if (Array.isArray(res)) setMyOrders(res);
+        })
+        .catch(() => {});
+    }
+  }, []);
+  const displayOrders = myOrders.length > 0 ? myOrders : (orders || []).filter(o => o.userId === user.id);
   // Filter orders matching current logged-in user
   const mine = (orders || []).filter(o => o.userId === user.id || o.customer === user.name);
 
