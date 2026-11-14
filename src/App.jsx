@@ -34,7 +34,13 @@ function App() {
   const [products, setProducts] = useState([]);
   const [users, setUsers] = useState([]);
   const [user, setUser] = useState(() => load('yc_user', null));
-  const [cart, setCart] = useState(() => load('yc_cart', []));
+  
+  // Load initial cart specifically for current logged-in user
+  const [cart, setCart] = useState(() => {
+    const savedUser = load('yc_user', null);
+    return savedUser?.id ? load(`yc_cart_${savedUser.id}`, []) : [];
+  });
+
   const [favorites, setFavorites] = useState([]);
   const [orders, setOrders] = useState(() => load('yc_orders', []));
   const [reviews, setReviews] = useState([]);
@@ -47,7 +53,24 @@ function App() {
     localStorage.removeItem('yc_products');
     localStorage.removeItem('yc_reviews');
     localStorage.removeItem('yc_users');
+    localStorage.removeItem('yc_cart'); // Clean up old global cart
   }, []);
+
+  // When user logs in, logs out, or switches accounts -> switch to their specific cart
+  useEffect(() => {
+    if (user?.id) {
+      setCart(load(`yc_cart_${user.id}`, []));
+    } else {
+      setCart([]);
+    }
+  }, [user?.id]);
+
+  // Save cart items per member
+  useEffect(() => {
+    if (user?.id) {
+      localStorage.setItem(`yc_cart_${user.id}`, JSON.stringify(cart));
+    }
+  }, [cart, user?.id]);
 
   // Load user's wishlist from database when logged in
   useEffect(() => {
@@ -85,7 +108,6 @@ function App() {
   };
 
   useEffect(() => { localStorage.setItem('yc_user', JSON.stringify(user)); }, [user]);
-  useEffect(() => { localStorage.setItem('yc_cart', JSON.stringify(cart)); }, [cart]);
   useEffect(() => { localStorage.setItem('yc_orders', JSON.stringify(orders)); }, [orders]);
 
   const flash = message => {
