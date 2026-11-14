@@ -20,31 +20,41 @@ function ProductDetail() {
   } = useStore();
 
   const p = (products || []).find(x => x.id === Number(id));
-  const [size, setSize] = useState('M');
-  const [color, setColor] = useState('White');
+
+  const [color, setColor] = useState(() => p?.colors?.[0] || 'White');
+  const [size, setSize] = useState(() => p?.sizes?.[0] || 'M');
   const [qty, setQty] = useState(1);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
 
   if (!p) return <NotFound />;
 
+  // Helper: Find variant for a specific size & color
+  const getVariant = (s, c) => {
+    return (p.variants || []).find(
+      v =>
+        (v.size || '').toLowerCase() === (s || '').toLowerCase() &&
+        (v.color || '').toLowerCase() === (c || '').toLowerCase()
+    );
+  };
+
+  // Stock for the currently selected Color & Size
+  const currentVariant = getVariant(size, color);
+  const variantStock = currentVariant ? currentVariant.stock_quantity : (p.stock || 0);
+
   const add = async () => {
     if (!user) return flash('กรุณาเข้าสู่ระบบก่อนเพิ่มสินค้าลงตะกร้า');
-    if (qty > p.stock) return flash('สินค้าในสต็อกไม่เพียงพอ');
+    if (variantStock <= 0) return flash('สินค้ารายการนี้หมดสต็อกแล้ว');
+    if (qty > variantStock) return flash('สินค้าในสต็อกไม่เพียงพอ');
 
-    const matchedVariant = (p.variants || []).find(
-      v =>
-        v.size.toLowerCase() === size.toLowerCase() &&
-        v.color.toLowerCase() === color.toLowerCase()
-    );
-    const variantId = matchedVariant?.variant_id || (p.variants?.[0]?.variant_id ?? p.id);
+    const variantId = currentVariant?.variant_id || (p.variants?.[0]?.variant_id ?? p.id);
 
     const token = localStorage.getItem('token');
     if (token) {
       try {
         await addToCart(variantId, qty, token);
       } catch (err) {
-        console.error('Failed to sync cart:', err);
+        console.error('Failed to sync cart to server:', err);
       }
     }
 
@@ -85,12 +95,15 @@ function ProductDetail() {
         <h1>{p.name}</h1>
         <div className="detail-price">{money(p.price)}</div>
         <p>{p.description}</p>
+
+        {/* Color Selection */}
         <div className="field">
           <label>COLOR — {color}</label>
           <div className="choice-row">
             {(p.colors || []).map(c => (
               <button
                 key={c}
+                type="button"
                 className={color === c ? 'choice selected' : 'choice'}
                 onClick={() => setColor(c)}
               >
@@ -99,34 +112,82 @@ function ProductDetail() {
             ))}
           </div>
         </div>
+
+        {/* Size Selection with Out-of-Stock Disabled & Transparency */}
         <div className="field">
-          <label>SIZE</label>
+          <label>SIZE — {size}</label>
           <div className="choice-row">
-            {(p.sizes || []).map(s => (
-              <button
-                key={s}
-                className={size === s ? 'size-choice selected' : 'size-choice'}
-                onClick={() => setSize(s)}
-              >
-                {s}
-              </button>
-            ))}
+            {(p.sizes || []).map(s => {
+              const v = getVariant(s, color);
+              const isOutOfStock = v ? v.stock_quantity <= 0 : false;
+              const isSelected = size === s;
+
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  disabled={isOutOfStock}
+                  className={`size-choice ${isSelected ? 'selected' : ''}`}
+                  onClick={() => {
+                    if (!isOutOfStock) {
+                      setSize(s);
+                      setQty(1);
+                    }
+                  }}
+                  style={{
+                    opacity: isOutOfStock ? 0.35 : 1,
+                    cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+                    textDecoration: isOutOfStock ? 'line-through' : 'none',
+                    position: 'relative',
+                  }}
+                  title={isOutOfStock ? `${s} (หมด)` : `${s} (${v?.stock_quantity ?? p.stock} ชิ้น)`}
+                >
+                  {s} {isOutOfStock ? '(หมด)' : ''}
+                </button>
+              );
+            })}
           </div>
         </div>
+
+        {/* Quantity Selection */}
         <div className="field">
           <label>QUANTITY</label>
           <div className="quantity">
-            <button onClick={() => setQty(Math.max(1, qty - 1))}>−</button>
-            <span>{qty}</span>
-            <button onClick={() => setQty(Math.min(p.stock, qty + 1))}>+</button>
-            <small>{p.stock} in stock</small>
+            <button
+              type="button"
+              disabled={variantStock <= 0}
+              onClick={() => setQty(Math.max(1, qty - 1))}
+            >
+              −
+            </button>
+            <span>{variantStock > 0 ? qty : 0}</span>
+            <button
+              type="button"
+              disabled={variantStock <= 0 || qty >= variantStock}
+              onClick={() => setQty(Math.min(variantStock, qty + 1))}
+            >
+              +
+            </button>
+            <small style={{ color: variantStock <= 0 ? '#b33' : '#888' }}>
+              {variantStock > 0 ? `${variantStock} in stock (${color} / ${size})` : 'สินค้าหมด'}
+            </small>
           </div>
         </div>
+
         <div className="detail-actions">
-          <button className="btn dark grow" onClick={add}>
-            ADD TO CART ↗
+          <button
+            className="btn dark grow"
+            disabled={variantStock <= 0}
+            onClick={add}
+            style={{
+              opacity: variantStock <= 0 ? 0.5 : 1,
+              cursor: variantStock <= 0 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {variantStock > 0 ? 'ADD TO CART ↗' : 'OUT OF STOCK'}
           </button>
           <button
+            type="button"
             className={`btn icon-btn ${liked ? 'liked' : ''}`}
             onClick={() => toggleFavorite(p.id)}
             aria-label="favorite"
@@ -134,10 +195,13 @@ function ProductDetail() {
             {liked ? '♥' : '♡'}
           </button>
         </div>
+
         <div className="detail-note">
           <span>SKU: YC-{p.id.toString().padStart(4, '0')}</span>
         </div>
       </div>
+
+      {/* Reviews Block */}
       <div className="reviews-block">
         <div className="section-heading">
           <div>

@@ -1,19 +1,22 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useStore } from '../context/StoreContext';
 import { money } from '../data';
-import ProductCard from '../components/ProductCard';
 import { Empty, LoginRequired } from '../components/Common';
-import { placeOrder } from '../api/backend';
-
+import { placeOrder, getProducts } from '../api/backend';
 
 function Checkout() {
-  const {user,cart,setCart,products,setOrders,setProducts,flash}=useStore();
-   const nav=useNavigate();
-  const [busy,setBusy]=useState(false);
-  if(!user)return <LoginRequired/>;
-  const lines=cart.map(x=>({...x,product:products.find(p=>p.id===x.productId)})).filter(x=>x.product);
-  const total=lines.reduce((s,x)=>s+x.product.price*x.qty,0);
+  const { user, cart, setCart, products, setOrders, setProducts, flash } = useStore();
+  const nav = useNavigate();
+  const [busy, setBusy] = useState(false);
+
+  if (!user) return <LoginRequired />;
+
+  const lines = cart
+    .map(x => ({ ...x, product: (products || []).find(p => p.id === x.productId) }))
+    .filter(x => x.product);
+  const total = lines.reduce((s, x) => s + x.product.price * x.qty, 0);
+
   const place = async () => {
     if (!lines.length) return;
     if (lines.some(x => x.qty > x.product.stock))
@@ -54,15 +57,14 @@ function Checkout() {
       };
 
       setOrders(old => [order, ...old]);
-      setProducts(old =>
-        old.map(p => {
-          const sold = lines
-            .filter(x => x.productId === p.id)
-            .reduce((a, x) => a + x.qty, 0);
-          return { ...p, stock: Math.max(0, p.stock - sold) };
-        })
-      );
       setCart([]);
+
+      // Fetch fresh products with updated stocks directly from Supabase
+      try {
+        const fresh = await getProducts();
+        if (Array.isArray(fresh)) setProducts(fresh);
+      } catch (e) {}
+
       nav(`/success/${orderId}`);
     } catch (err) {
       flash(err.message || 'ไม่สามารถทำการสั่งซื้อได้');
@@ -70,28 +72,45 @@ function Checkout() {
       setBusy(false);
     }
   };
-  return <section className="container page-section narrow">
-    <div className="page-title">
-      <span className="eyebrow">ONE LAST LOOK</span>
-      <h1>Confirm your order</h1>
-      <p>ตรวจสอบรายการสินค้าก่อนยืนยันคำสั่งซื้อ</p>
+
+  return (
+    <section className="container page-section narrow">
+      <div className="page-title">
+        <span className="eyebrow">ONE LAST LOOK</span>
+        <h1>Confirm your order</h1>
+        <p>ตรวจสอบรายการสินค้าก่อนยืนยันคำสั่งซื้อ</p>
       </div>
-      {lines.length?<>
-      <div className="checkout-list">{lines.map(x=>
-        <div className="summary-row" key={x.key}>
-          <span>{x.product.name} · {x.color} / {x.size} × {x.qty}</span>
-          <b>{money(x.product.price*x.qty)}</b>
+      {lines.length ? (
+        <>
+          <div className="checkout-list">
+            {lines.map(x => (
+              <div className="summary-row" key={x.key}>
+                <span>
+                  {x.product.name} · {x.color} / {x.size} × {x.qty}
+                </span>
+                <b>{money(x.product.price * x.qty)}</b>
+              </div>
+            ))}
           </div>
-        )}</div>
           <div className="summary-row total">
             <b>Total</b>
             <b>{money(total)}</b>
-            </div>
-            <div className="notice-box">
-              <b>Order confirmation</b>
-              </div>
-              <button className="btn dark full" disabled={busy} onClick={place}>{busy?'PROCESSING...':'CONFIRM ORDER ↗'}</button>
-              <Link className="back-link" to="/cart">← Back to cart</Link></>:<Empty title="ไม่มีสินค้าให้สั่งซื้อ" desc="กรุณาเลือกสินค้าก่อน"/>}</section>;
+          </div>
+          <div className="notice-box">
+            <b>Order confirmation</b>
+          </div>
+          <button className="btn dark full" disabled={busy} onClick={place}>
+            {busy ? 'PROCESSING...' : 'CONFIRM ORDER ↗'}
+          </button>
+          <Link className="back-link" to="/cart">
+            ← Back to cart
+          </Link>
+        </>
+      ) : (
+        <Empty title="ไม่มีสินค้าให้สั่งซื้อ" desc="กรุณาเลือกสินค้าก่อน" />
+      )}
+    </section>
+  );
 }
 
 export default Checkout;
