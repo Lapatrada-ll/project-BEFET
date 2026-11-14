@@ -105,7 +105,7 @@ function Auth({ mode }) {
           />
         </div>
 
-        <div className="field">
+               <div className="field">
           <label>PASSWORD</label>
           <input
             required
@@ -117,6 +117,17 @@ function Auth({ mode }) {
           />
         </div>
 
+        {!isRegister && (
+          <div style={{ textAlign: 'right', marginTop: '-10px', marginBottom: '18px' }}>
+            <Link
+              to="/forgot-password"
+              style={{ fontSize: '11px', color: '#888', textDecoration: 'underline' }}
+            >
+              ลืมรหัสผ่าน? (Forgot password)
+            </Link>
+          </div>
+        )}
+        
         <button className="btn dark full" disabled={loading}>
           {loading ? 'PLEASE WAIT...' : isRegister ? 'CREATE ACCOUNT ↗' : 'LOGIN ↗'}
         </button>

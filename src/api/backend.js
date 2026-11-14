@@ -206,3 +206,10 @@ export function placeOrder(items, address, token) {
 export function getMyOrders(token) {
   return apiFetch('/api/orders/mine', { token });
 }
+
+export function resetPassword(email, newPassword) {
+  return apiFetch('/api/reset-password', {
+    method: 'POST',
+    body: { email, new_password: newPassword },
+  });
+}

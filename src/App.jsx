@@ -22,6 +22,7 @@ import Success from './pages/Success';
 import Account from './pages/Account';
 import { NotFound } from './components/Common';
 import { getCart } from './api/backend';
+import ForgotPassword from './pages/ForgotPassword';
 
 const load = (key, fallback) => {
   try {
@@ -170,6 +171,7 @@ function App() {
             <Route path="/account" element={<Account />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
           </Routes>
         </main>
         <Footer />
