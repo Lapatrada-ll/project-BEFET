@@ -36,7 +36,7 @@ function App() {
   const [user, setUser] = useState(() => load('yc_user', null));
   const [cart, setCart] = useState(() => load('yc_cart', []));
   const [favorites, setFavorites] = useState([]);
-  useEffect(() => { localStorage.setItem('yc_orders', JSON.stringify(orders)); }, [orders]);
+  const [orders, setOrders] = useState(() => load('yc_orders', []));
   const [reviews, setReviews] = useState([]);
   const [notice, setNotice] = useState('');
 
@@ -86,6 +86,7 @@ function App() {
 
   useEffect(() => { localStorage.setItem('yc_user', JSON.stringify(user)); }, [user]);
   useEffect(() => { localStorage.setItem('yc_cart', JSON.stringify(cart)); }, [cart]);
+  useEffect(() => { localStorage.setItem('yc_orders', JSON.stringify(orders)); }, [orders]);
 
   const flash = message => {
     setNotice(message);
