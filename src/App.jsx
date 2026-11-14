@@ -36,7 +36,7 @@ function App() {
   const [user, setUser] = useState(() => load('yc_user', null));
   const [cart, setCart] = useState(() => load('yc_cart', []));
   const [favorites, setFavorites] = useState([]);
-  const [orders, setOrders] = useState([]);
+  useEffect(() => { localStorage.setItem('yc_orders', JSON.stringify(orders)); }, [orders]);
   const [reviews, setReviews] = useState([]);
   const [notice, setNotice] = useState('');
 
